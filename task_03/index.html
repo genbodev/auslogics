@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style type="text/css">
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        .wrapper {
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: -ms-flexbox;
+            display: flex;
+            height: 100%;
+            width: 100%;
+            -webkit-box-orient: vertical;
+            -webkit-box-direction: normal;
+            -webkit-flex-direction: column;
+            -ms-flex-direction: column;
+            flex-direction: column;
+        }
+
+        .header {
+            height: 100px;
+            margin-bottom: 2px;
+            background-color: #ddd;
+        }
+
+        .columns-wrapper {
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: -ms-flexbox;
+            display: flex;
+            -webkit-box-flex: 1;
+            -webkit-flex: 1 0 auto;
+            -ms-flex: 1 0 auto;
+            flex: 1 0 auto;
+            -webkit-box-align: end;
+            -webkit-align-items: flex-end;
+            -ms-flex-align: end;
+            align-items: flex-end;
+        }
+
+        .columns-wrapper > div:first-child {
+            margin-right: 1px;
+        }
+
+        .columns-wrapper > div:last-child {
+            margin-left: 1px;
+        }
+
+        .column {
+            width: 50%;
+            height: 200px;
+            border: 1px solid #ccc;
+            background-color: #ddd;
+            line-height: 200px;
+            font-size: xx-large;
+            text-align: center;
+        }
+
+        .column-first {
+            height: 400px;
+            line-height: 400px;
+        }
+
+        .bottom {
+            height: 100px;
+            margin-top: 2px;
+            background-color: #333;
+            -webkit-box-flex: 0;
+            -webkit-flex: 0 0 auto;
+            -ms-flex: 0 0 auto;
+            flex: 0 0 auto;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <div class="header"></div>
+    <div class="columns-wrapper">
+        <div class="column column-first">A</div>
+        <div class="column">B</div>
+    </div>
+    <div class="bottom"></div>
+</div>
+
+</body>
+</html>
