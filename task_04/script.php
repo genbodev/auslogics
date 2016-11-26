@@ -165,7 +165,7 @@ if (isset($_POST['submit-recovery'])) {
       }
       else {
         echo 'In your email has been sent a link to restore the phone number. The link time - 1 hour<br />';
-        echo $lnk;
+        //echo $lnk;
       }
     }
   }
@@ -227,7 +227,7 @@ if (isset($_GET['id']) && isset($_GET['hash']) && isset($_GET['email'])) {
         }
         else {
           echo 'In your email your phone number has been sent to</br>';
-          echo $phone;
+          //echo $phone;
         }
       }
       else {
