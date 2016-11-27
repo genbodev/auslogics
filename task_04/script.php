@@ -10,6 +10,7 @@ define('PASSWORD', '');
 define('DATABASE', 'auslogics');
 
 
+
 /**
  * Show errors on screen
  * @param $err
@@ -152,7 +153,6 @@ if (isset($_POST['submit-recovery'])) {
     $mysqli = mysqli_connect(HOST, USER, PASSWORD, DATABASE) or die('Ошибка ' . mysqli_error($mysqli));
     $sql = "INSERT INTO hashes (hash_sum, phone_id, expiration_date) VALUES (?,(SELECT id FROM phones WHERE email = ?),?)";
     $stmt = $mysqli->prepare($sql);
-    //var_dump(generateHashWithSalt($_POST['email'],false));
     $stmt->bind_param('sss', $hash, generateHashWithSalt($_POST['email'], false), $date->format('Y-m-d H:i:s'));
     $stmt->execute();
     $insert_id = $mysqli->insert_id;
@@ -212,7 +212,6 @@ if (isset($_POST['submit-recovery'])) {
 /**------------- Sending the phone number -------------**/
 
 if (isset($_GET['id']) && isset($_GET['hash']) && isset($_GET['email'])) {
-  var_dump($_GET);
   if (!isset($_GET['code']) || $_GET['code'] === '') {
     $err[] = 'No secret code!';
   }
