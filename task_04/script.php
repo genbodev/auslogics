@@ -2,12 +2,13 @@
 
 // Remembered procedural programming ;)
 
-$err = [];
+$err = array();
 
 define('HOST', 'localhost');
 define('USER', 'root');
 define('PASSWORD', '');
 define('DATABASE', 'auslogics');
+
 
 /**
  * Show errors on screen
@@ -70,6 +71,7 @@ if (isset($_POST['submit-registration'])) {
     showError($err);
   }
   else {
+    $secret_code = substr(generateHashWithSalt($_POST['email'], true), 0, 11);
     $mysqli = mysqli_connect(HOST, USER, PASSWORD, DATABASE) or die('Ошибка ' . mysqli_error($mysqli));
     $stmt = $mysqli->prepare("SELECT email FROM phones WHERE email = ?");
     $stmt->bind_param('s', generateHashWithSalt($_POST['email'], false));
@@ -79,7 +81,7 @@ if (isset($_POST['submit-registration'])) {
       $err[] = 'Email busy: ' . $_POST['email'];
     }
     else {
-      $key = substr(generateHashWithSalt($_POST['email'], false), 0, 56);
+      $key = substr(generateHashWithSalt($secret_code, false), 0, 56);
       $td = mcrypt_module_open(MCRYPT_BLOWFISH, '', MCRYPT_MODE_CFB, '');
       $iv_size = mcrypt_enc_get_iv_size($td);
       $iv = mcrypt_create_iv($iv_size, MCRYPT_RAND);
@@ -101,7 +103,32 @@ if (isset($_POST['submit-registration'])) {
       showError($err);
     }
     else {
-      echo 'Data saved';
+      $to = $_POST['email'];
+      $subject = 'Successful registration';
+      $message = '<html>
+                    <head>
+                      <title>' . $subject . '</title>
+                    </head>
+                    <body>
+                      <h3>Secret code: ' . $secret_code . '</h3>
+                      <p>Use the secret code to restore the phone number in case it is lost</p>
+                    </body>
+                  </html>';
+
+      $headers = 'MIME-Version: 1.0' . "\r\n";
+      $headers .= 'Content-type: text/html; charset=iso-8859-1' . "\r\n";
+      $headers .= 'To: Client <' . $to . '>, Copy <example@example.com>' . "\r\n";
+
+      if (!mail($to, $subject, $message, $headers)) {
+        $err[] = 'Email is not gone!';
+      }
+      if (count($err) > 0) {
+        showError($err);
+      }
+      else {
+        echo 'Data saved. The secret code is sent by email<br />';
+        //echo $secret_code;
+      }
     }
   }
 }
@@ -139,7 +166,7 @@ if (isset($_POST['submit-recovery'])) {
       showError($err);
     }
     else {
-      $lnk = request_url() . '?id=' . $insert_id . '&hash=' . $hash . '&email=' . $_POST['email'];
+      $lnk = request_url() . '?id=' . $insert_id . '&hash=' . $hash . '&email=' . $_POST['email'] . '&code={Insert_the_a_secret_code_here}';
       $to = $_POST['email'];
       $subject = 'Request for recovery';
       $message = '<html>
@@ -148,7 +175,18 @@ if (isset($_POST['submit-recovery'])) {
                     </head>
                     <body>
                       <h3>You asked for my phone number.</h3>
-                      <p>Please click on the link: <a href="' . $lnk . '">' . $lnk . '</a></p>
+                      <form action="'.$lnk.'" method="GET">
+                        <div>Enter your SECRET CODE:</div>
+                        <div><input type="text" size="30" name="code"></div>
+                        <div><input type="hidden" size="30" name="id" value="'.$insert_id.'"></div>
+                        <div><input type="hidden" size="30" name="hash" value="'.$hash.'"></div>
+                        <div><input type="hidden" size="30" name="email" value="'.$_POST['email'].'"></div>
+                        <div><input type="submit" value="submit" name="submit-code"></div>
+                      </form>
+                      <br />
+                      <p>Or in another way:</p>
+                      <p>Complete link your secret password. Follow this link.</p>
+                      <p>' . $lnk . '</p>
                     </body>
                   </html>';
 
@@ -174,38 +212,45 @@ if (isset($_POST['submit-recovery'])) {
 /**------------- Sending the phone number -------------**/
 
 if (isset($_GET['id']) && isset($_GET['hash']) && isset($_GET['email'])) {
-  $mysqli = mysqli_connect(HOST, USER, PASSWORD, DATABASE) or die('Ошибка ' . mysqli_error($mysqli));
-  $sql = "SELECT t1.phone, t2.expiration_date FROM phones AS t1 
-          INNER JOIN hashes AS t2 ON t2.phone_id = t1.id
-          WHERE t2.id = ? AND t2.hash_sum = ?;";
-  $stmt = $mysqli->prepare($sql);
-  $stmt->bind_param('ss', $_GET['id'], $_GET['hash']);
-  $stmt->execute();
-  $stmt->store_result();
-  $stmt->bind_result($phone, $expiration_date);
-  if (!$stmt->num_rows > 0) {
-    $err[] = 'No data!';
+  var_dump($_GET);
+  if (!isset($_GET['code']) || $_GET['code'] === '') {
+    $err[] = 'No secret code!';
   }
   if (count($err) > 0) {
     showError($err);
-  }
-  else {
-    $date = new DateTime();
-    while ($stmt->fetch()) {
-      $phone = base64_decode($phone);
-      $td = mcrypt_module_open(MCRYPT_BLOWFISH, '', MCRYPT_MODE_CFB, '');
-      $iv_size = mcrypt_enc_get_iv_size($td);
-      $iv = substr($phone, 0, $iv_size);
-      $crypt_text = substr($phone, $iv_size);
-      $key = substr(generateHashWithSalt($_GET['email'], false), 0, 56);
-      mcrypt_generic_init($td, $key, $iv);
-      $phone = mdecrypt_generic($td, $crypt_text);
-      mcrypt_generic_deinit($td);
-      mcrypt_module_close($td);
-      if (strtotime($date->format('Y-m-d H:i:s')) <= strtotime($expiration_date)) {
-        $to = $_POST['email'];
-        $subject = 'Phone number data';
-        $message = '<html>
+  } else {
+    $mysqli = mysqli_connect(HOST, USER, PASSWORD, DATABASE) or die('Ошибка ' . mysqli_error($mysqli));
+    $sql = "SELECT t1.phone, t2.expiration_date FROM phones AS t1 
+          INNER JOIN hashes AS t2 ON t2.phone_id = t1.id
+          WHERE t2.id = ? AND t2.hash_sum = ?;";
+    $stmt = $mysqli->prepare($sql);
+    $stmt->bind_param('ss', $_GET['id'], $_GET['hash']);
+    $stmt->execute();
+    $stmt->store_result();
+    $stmt->bind_result($phone, $expiration_date);
+    if (!$stmt->num_rows > 0) {
+      $err[] = 'No data!';
+    }
+    if (count($err) > 0) {
+      showError($err);
+    }
+    else {
+      $date = new DateTime();
+      while ($stmt->fetch()) {
+        $phone = base64_decode($phone);
+        $td = mcrypt_module_open(MCRYPT_BLOWFISH, '', MCRYPT_MODE_CFB, '');
+        $iv_size = mcrypt_enc_get_iv_size($td);
+        $iv = substr($phone, 0, $iv_size);
+        $crypt_text = substr($phone, $iv_size);
+        $key = substr(generateHashWithSalt($_GET['code'], false), 0, 56);
+        mcrypt_generic_init($td, $key, $iv);
+        $phone = mdecrypt_generic($td, $crypt_text);
+        mcrypt_generic_deinit($td);
+        mcrypt_module_close($td);
+        if (strtotime($date->format('Y-m-d H:i:s')) <= strtotime($expiration_date)) {
+          $to = $_GET['email'];
+          $subject = 'Phone number data';
+          $message = '<html>
                     <head>
                       <title>' . $subject . '</title>
                     </head>
@@ -215,26 +260,27 @@ if (isset($_GET['id']) && isset($_GET['hash']) && isset($_GET['email'])) {
                     </body>
                   </html>';
 
-        $headers = 'MIME-Version: 1.0' . "\r\n";
-        $headers .= 'Content-type: text/html; charset=iso-8859-1' . "\r\n";
-        $headers .= 'To: Client <' . $to . '>, Copy <example@example.com>' . "\r\n";
+          $headers = 'MIME-Version: 1.0' . "\r\n";
+          $headers .= 'Content-type: text/html; charset=iso-8859-1' . "\r\n";
+          $headers .= 'To: Client <' . $to . '>, Copy <example@example.com>' . "\r\n";
 
-        if (!mail($to, $subject, $message, $headers)) {
-          $err[] = 'Email is not gone!';
-        }
-        if (count($err) > 0) {
-          showError($err);
+          if (!mail($to, $subject, $message, $headers)) {
+            $err[] = 'Email is not gone!';
+          }
+          if (count($err) > 0) {
+            showError($err);
+          }
+          else {
+            echo 'In your email your phone number has been sent to</br>';
+            //echo $phone;
+          }
         }
         else {
-          echo 'In your email your phone number has been sent to</br>';
-          //echo $phone;
+          $err[] = 'Period has expired!';
+          showError($err);
         }
       }
-      else {
-        $err[] = 'Period has expired!';
-        showError($err);
-      }
     }
+    $stmt->close();
   }
-  $stmt->close();
 }
